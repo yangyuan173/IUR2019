@@ -1,0 +1,7 @@
+---
+title: "IUR Calculation for SHR, SMR, and STrR"
+author: "Yuan Yang"
+date: "3/13/2019"
+output: html_document
+---
+
