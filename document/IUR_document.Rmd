@@ -1,7 +1,84 @@
 ---
 title: "IUR Calculation for SHR, SMR, and STrR"
 author: "Yuan Yang"
-date: "3/13/2019"
-output: html_document
+date: '`r format(Sys.Date(), "%Y-%B-%d")`'
+output:
+  pdf_document: default
+  html_document: default
 ---
+
+# IUR by bootstrap for SMR-type measure
+
+ The SMR-type measure is calculated by
+$$SMR_j = \frac{\sum_i^{n_j} O_{ji}}{\sum_i^{n_j} E_{ji}},$$
+where
+
+* $j$: $1,\cdots,J$, facility index
+* $n_j$: the number of patients in facility $j$
+* $i$: patient index
+* $O_{ji}$: observed value for patient $i$ in facility $j$
+* $E_{ji}$: expected value for patient $i$ in facility $j$
+* $SMR_j$: SMR for facility $j$.
+
+
+To calculate IUR for SMR-type measure, we need to define some other notation:
+
+* $b$: bootstrap index
+* $B$: total number of bootstraps
+* $O_{ji}^{(b)}$: observed value for patient $i$ in facility $j$ for $b$th bootstrap data 
+* $E_{ji}^{(b)}$: expected value for patient $i$ in facility $j$ for $b$th bootstrap data 
+* $SMR_j^{(b)}$: SMR for facility $j$ for $b$th bootstrap data, $$SMR_j^{(b)} = \frac{\sum_i^{n_j} O_{ji}^{(b)}}{\sum_i^{n_j} E_{ji}^{(b)}}.$$
+
+Algorithm:
+
+1. For $b = 1,\cdots, B$, sample data from original data using facility-stratified sampling.
+2. Calculate $SMR^{(b)}$ for each bootstrap data.
+3. Calculate within-facility variance: $$\sigma^2_w = \frac{\sum_j \sum_b (SMR_j^{(b)}-\overline{SMR}_j)^2}{\sum_j(n_j-1)},$$ where $\overline{SMR}_j= \sum_b SMR_j^{(b)}/n_j$.
+4. $$n' = \frac{\sum_j n_j - \sum_j n_j^2/\sum_j n_j}{\sum_j n_j-1}.$$
+5. Calculate total variance: $$\sigma^2_t = \frac{\sum_j n_j(SMR_j-\overline{SMR})^2}{n'(\sum_j n_j -1)},$$ where $\overline{SMR} = \sum_j n_jSMR_j/\sum_j n_j$.
+6. Between facility variance $\sigma^2_b = \sigma^2_t- \sigma^2_w$.
+6. $$IUR = \frac{\sigma^2_b}{\sigma^2_t}.$$
+7. Facility IUR, $$IUR_j = \frac{\sigma^2_b}{\sigma^2_b+\sigma^2_w/n_j}.$$
+
+
+# Data requirements
+
+
+```{r table-simple, echo=FALSE, message=FALSE, warning=FALSE, warnings=FALSE}
+library(knitr)
+library(kableExtra) #https://cran.r-project.org/web/packages/kableExtra/vignettes/awesome_table_in_html.html
+#require(pander) # look good in both pdf and html
+#panderOptions('table.split.table', Inf)
+#set.caption("Data ")
+my.data <- "
+  Measure | Input           | Data requirement  | stratify.var
+  SMR     | obs_death, exp_death, facility, stratify.var, stratify_cutoff, year | Remove 'Short' and small  facilities (facility expected death < 3) |
+  SHR     | obs_admission, exp_admission, facility, stratify.var, stratify_cutoff, year |   Remove 'Short' and small facilities (facility patient year < 5 ) |
+  STrR | obs_transyr, exp_transyr, facility, stratify.var, stratify_cutoff, year   |  Remove 'Short' and small facilities (facility trans_yar<10) |"  
+df <- read.delim(textConnection(my.data),header=FALSE,sep="|",strip.white=TRUE,stringsAsFactors=FALSE)
+names(df) <- unname(as.list(df[1,])) # put headers on
+df <- df[-1,] # remove first row
+row.names(df)<-NULL
+#pander(df, style = 'rmarkdown')
+df %>%
+  kable() %>%
+  column_spec(2:3, width = "5cm") %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed","bordered"), full_width = F)
+```
+
+# R code example
+## SMR
+
+## SHR
+
+## STrR
+```{r, eval=FALSE, include=FALSE}
+provfs=data0$provfs
+ptyear=data0$trans_yar
+numerator=data0$t_trans
+denominator=data0$expecttr
+```
+
+
+
 

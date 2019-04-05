@@ -109,6 +109,18 @@ stra_sampling<-function(fac){
   }
   return(sample_index)
 }
+stra_sampling2<-function(size){
+  m<-length(size)
+  mark<-cumsum(size)
+  total<-sum(size)
+  sample.id<-NULL
+  sample.id<-c(sample.id,sample.int(size[1],size=size[1],replace=TRUE))
+  for(i in 2:m){
+    sample.id<-c(sample.id,mark[i-1]+sample.int(size[i],size=size[i],replace=TRUE))
+  }
+  return(sample.id)
+}
+
 
 
 IUR_bootdata <- function(size,measure.boot,measure.org){
