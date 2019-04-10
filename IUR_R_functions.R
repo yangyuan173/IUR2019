@@ -1,4 +1,119 @@
 
+################## complete ################
+stra_sampling <- function(fac_size){
+  #sampling with replacement within each strata.
+  #fac_size: facility size.
+  m = length(fac_size)
+  mark = cumsum(fac_size)
+  total = sum(mark)
+  sample.id = NULL
+  sample.id = c(sample.id,sample.int(fac_size[1],size = fac_size[1],replace = TRUE))
+  for(i in 2:m){
+    sample.id = c(sample.id,mark[i-1]+sample.int(fac_size[i],size = fac_size[i],replace = TRUE))
+  }
+  return(sample.id)
+}
+
+
+
+IUR_bootdata <- function(size,measure.boot,measure.org){
+  #         size: facility size vector. Each item corresponds to a facility size.
+  # measure.boot: bootstraped measure vector.
+  #  measure.org: original measure vector, e.g. SMR and SHR.
+  s2_star = apply(measure.boot,1,var)      # within-facility variances
+  s2_w = sum((size-1)*s2_star)/sum(size-1) # mean within-facility variance
+  nF = length(size) # number of facilities.
+  n_prime = (sum(size)-sum(size^2)/sum(size))/(nF-1)  
+  T_mean = sum(size*measure.org)/sum(size) # mean orginal measure
+  s2_t = sum(size*(measure.org-T_mean)^2)/(n_prime*(nF-1)) # total variance
+  s2_b = s2_t-s2_w # between-facility variance
+  IUR = s2_b/s2_t # total IUR
+  IUR.fac = s2_b/(s2_b+s2_w/size) # facility level IUR
+  return(list(IUR = IUR,nF = nF,IUR.fac = IUR.fac))
+  #      IUR: total IUR
+  #       nF: number of facilities
+  # IUR.fac: faclity level IUR
+}
+
+
+cal_SMR <- function(Obs,Exp,fac){
+  #Note: caculate SMR type measure. Data should be sorted by facitlity (fac).
+  # Obs: observed outcomes;
+  # Exp: expected outcomes;
+  # fac: facility id vector;
+  Obs.sum = as.vector(sapply(split(Obs,factor(fac)),sum))
+  Exp.sum = as.vector(sapply(split(Exp,factor(fac)),sum))
+  measure = Obs.sum/Exp.sum
+  return(measure)
+}
+
+
+IUR_bootstrap<-function(Obs, Exp, fac, n.boot = 100, stratify.var = NULL,stratify.cut = NULL, measure.fun = cal_SMR, seed = 123){
+  # Note: IUR using bootstrap method. The data should be sorted by facitlity (fac).
+  #          Obs: observed outcomes;
+  #          Exp: expected outcomes;
+  #          fac: facility id vector;
+  #       n.boot: the number of bootstraps;
+  # stratify.var: stratification variable;
+  # stratify.cut: stratification cutoff. It should be a vector with two cutoff points. If it is NULL, tertiles will be used.
+  #  measure.fun: function to calculate the measure of interest. For now, we only implement SMR type of function.
+  #         seed: an integer number to generate random numbers.
+  set.seed(seed)
+  fac = factor(fac)
+  # following 5 lines are to sort the data by fac. They could be removed if we sort the data before this function.
+  Obs = Obs[order(fac)]
+  Exp = Exp[order(fac)]
+  if(!is.null(stratify.var)){
+    stratify.var = stratify.var[order(fac)]
+    fac = fac[order(fac)]
+  }else{
+    fac = fac[order(fac)]
+    stratify.var = rep(1,length(fac))
+  }
+  
+  size = as.vector(sapply(split(fac,fac),length))
+  measure.origin = measure.fun(Obs,Exp,fac)
+  measure.boot = matrix(NA,nrow = length(size),ncol = n.boot)
+  
+  # bootstraping
+  cat("Bootstrap data ... \n")
+  loop = 0
+  nloop = n.boot
+  repeat {
+    loop = loop+1
+    #cat(loop,'\n')
+    sample.id = stra_sampling(fac_size = size)
+    measure.boot[,loop] = measure.fun(Obs[sample.id],Exp[sample.id],fac[sample.id])
+    if(loop == nloop) break
+  }
+  # calculating IUR
+  cat("Calculating IUR ... \n")
+  fit.IUR = IUR_bootdata(size,measure.boot,measure.origin)
+  IUR = c(fit.IUR$IUR,fit.IUR$nF)
+  IUR.fac = as.matrix(fit.IUR$IUR.fac,nc=1)
+  rownames(IUR.fac) = sort(unique(fac))
+  
+  if(is.null(stratify.cut)){
+    stra_sum = as.vector(sapply(split(stratify.var,factor(fac)),sum))
+    stratify.cut = quantile(stra_sum,prob = c(0.33,0.67))
+  }
+  label1 = (stra_sum <= stratify.cut[1]) # right-closed interval
+  label2 = (stratify.cut[1] < stra_sum & stra_sum <= stratify.cut[2])
+  label3 = (stratify.cut[2] < stra_sum) 
+  label = list(label1,label2,label3)
+  for(i in 1:3){
+    fit.IUR = IUR_bootdata(size[label[[i]]],measure.boot[label[[i]],],measure.origin[label[[i]]])
+    IUR_group = c(fit.IUR$IUR,fit.IUR$nF)
+    IUR  = rbind(IUR,IUR_group)
+  }
+  colnames(IUR) = c("IUR","Group size")
+  rownames(IUR) = c("Total",paste(min(size),"<=size<",stratify.cut[1],sep=""),paste(stratify.cut[1],"<size<=",stratify.cut[2],sep=""),
+                    paste(stratify.cut[2],"<size<=",max(size),sep=""))
+  return(list(IUR = IUR, IUR.fac = IUR.fac))
+}
+
+####################### old functions ############################
+
 IUR_core<-function(size,bootsdata,measureorg){
   #
   s2_star = apply(bootsdata,1,var) 
@@ -96,120 +211,21 @@ IUR_boot <- function(data=data, q2=NULL,q3=NULL){
   run.time=proc.time()[3]-time0
   return(list(IUR=IUR_all,cutoff=c(min(data_summary$patient_year),q2,q3,max(data_summary$patient_year)),run.time=run.time))
 }
-
-################## complete ################
-stra_sampling<-function(fac){
-  #sampling with replacement within each strata.
-  #fac: a sorted factor vector, e.g. facility.
-  n = length(fac)
-  index = 1:n
-  sample_index = rep(0,n)
-  for(fac_temp in fac){
-    sample_index[fac==fac_temp] = sample(index[fac==fac_temp],replace = TRUE)
-  }
-  return(sample_index)
-}
-stra_sampling2<-function(size){
-  m<-length(size)
-  mark<-cumsum(size)
-  total<-sum(size)
-  sample.id<-NULL
-  sample.id<-c(sample.id,sample.int(size[1],size=size[1],replace=TRUE))
-  for(i in 2:m){
-    sample.id<-c(sample.id,mark[i-1]+sample.int(size[i],size=size[i],replace=TRUE))
-  }
-  return(sample.id)
-}
-
-
-
-IUR_bootdata <- function(size,measure.boot,measure.org){
-  #         size: facility size vector. Each item corresponds to a facility size.
-  # measure.boot: bootstraped measure vector.
-  #  measure.org: original measure vector, e.g. SMR and SHR.
-  s2_star = apply(measure.boot,1,var)      # within-facility variances
-  s2_w = sum((size-1)*s2_star)/sum(size-1) # mean within-facility variance
-  nF = length(size) # number of facilities.
-  n_prime = (sum(size)-sum(size^2)/sum(size))/(nF-1)  
-  T_mean = sum(size*measure.org)/sum(size) # mean orginal measure
-  s2_t = sum(size*(measure.org-T_mean)^2)/(n_prime*(nF-1)) # total variance
-  s2_b = s2_t-s2_w # between-facility variance
-  IUR = s2_b/s2_t # total IUR
-  IUR.fac = s2_b/(s2_b+s2_w/size) # facility level IUR
-  return(list(IUR = IUR,nF = nF,IUR.fac = IUR.fac))
-  #      IUR: total IUR
-  #       nF: number of facilities
-  # IUR.fac: faclity level IUR
-}
-
-
-cal_SMR <- function(Obs,Exp,fac){
-  #Note: caculate SMR type measure. Data should be sorted by facitlity (fac).
-  # Obs: observed outcomes;
-  # Exp: expected outcomes;
-  # fac: facility id vector;
-  Obs.sum = as.vector(sapply(split(Obs,factor(fac)),sum))
-  Exp.sum = as.vector(sapply(split(Exp,factor(fac)),sum))
-  measure = Obs.sum/Exp.sum
-  return(measure)
-}
-
-
-IUR_bootstrap<-function(Obs, Exp, fac, n.boot = 100, stratify.var = NULL,stratify.cut = NULL, measure.fun = cal_SMR, seed = 123){
-  # Note: IUR using bootstrap method. The data should be sorted by facitlity (fac).
-  #          Obs: observed outcomes;
-  #          Exp: expected outcomes;
-  #          fac: facility id vector;
-  #       n.boot: the number of bootstraps;
-  # stratify.var: stratification variable;
-  # stratify.cut: stratification cutoff. It should be a vector with two cutoff points. If it is NULL, tertiles will be used.
-  #  measure.fun: function to calculate the measure of interest. For now, we only implement SMR type of function.
-  #         seed: an integer number to generate random numbers.
-  set.seed(seed)
-  # following 5 lines are to sort the data by fac. They could be removed if we sort the data before this function.
-  Obs = Obs[order(fac)]
-  Exp = Exp[order(fac)]
-  if(!is.null(stratify.var)){
-    stratify.var = stratify.var[order(fac)]
-    fac = fac[order(fac)]
-  }else{
-    fac = fac[order(fac)]
-    stratify.var = fac
-  }
-  
-  size = as.vector(sapply(split(fac,factor(fac)),length))
-  measure.origin = measure.fun(Obs,Exp,fac)
-  measure.boot = matrix(NA,nrow = length(size),ncol = n.boot)
-  
-  # bootstraping
-  loop = 0
-  nloop = n.boot
-  repeat {
-    loop = loop+1
-    sample.id = stra_sampling(fac)
-    measure.boot[,loop] = measure.fun(Obs[sample.id],Exp[sample.id],fac[sample.id])
-    if(loop == nloop) break
-  }
-  # calculating IUR
-  fit.IUR = IUR_bootdata(size,measure.boot,measure.origin)
-  IUR = c(fit.IUR$IUR,fit.IUR$nF)
-  IUR.fac = fit.IUR$IUR.fac
-  
-  if(is.null(stratify.cut)){
-    stra_sum = as.vector(sapply(split(stratify.var,factor(fac)),sum))
-    stratify.cut = quantile(stra_sum,prob = c(0.33,0.67))
-  }
-  label1 = (stra_sum <= stratify.cut[1]) # right-closed interval
-  label2 = (stratify.cut[1] < stra_sum & stra_sum <= stratify.cut[2])
-  label3 = (stratify.cut[2] < stra_sum) 
-  label = list(label1,label2,label3)
-  for(i in 1:3){
-    fit.IUR = IUR_bootdata(size[label[[i]]],measure.boot[label[[i]],],measure.origin[label[[i]]])
-    IUR_group = c(fit.IUR$IUR,fit.IUR$nF)
-    IUR  = rbind(IUR,IUR_group)
-  }
-  colnames(IUR) = c("IUR","Group size")
-  return(list(IUR = IUR, IUR.fac = IUR.fac))
-}
-
-
+# stra_sampling<-function(fac){
+#   #sampling with replacement within each strata.
+#   #fac: a sorted factor vector, e.g. facility.
+#   fac = factor(fac)
+#   n = length(fac)
+#   index = 1:n
+#   sample_index = rep(0,n)
+#   for(fac_temp in unique(fac)){
+#     # i = i+1
+#     # fac_temp = unique(fac)[i]
+#     if(length(index[fac==fac_temp])==1){
+#       sample_index[fac==fac_temp] = index[fac==fac_temp]
+#     }else{
+#       sample_index[fac==fac_temp] = sample(index[fac==fac_temp],size = length(index[fac==fac_temp]),replace = TRUE)
+#     }
+#   }
+#   return(sample_index)
+# }
