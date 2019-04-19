@@ -98,27 +98,27 @@ n.na = nrow(SMR_data)-sum(complete.cases(SMR_data))
 SMR_data = SMR_data[complete.cases(SMR_data),]
 short_fac = SMR_data[,facility] =='Short'
 SMR_data = SMR_data[!short_fac,]
-
-SMR_data[,facility] = factor(SMR_data[,facility])
-SMR_data = SMR_data[order(SMR_data[,facility]),]
-SMR_data$expdeath = rep(sapply(split(SMR_data[,exp_death],SMR_data[,facility]),sum),
-                      sapply(split(SMR_data[,exp_death],SMR_data[,facility]),length)
-)
-small_fac = SMR_data[,"expdeath"] < 3
-SMR_data = SMR_data[!small_fac,]
 cat(paste("Cleaning data completed!\n There are",n.all,"observations in the original data;\n"
           ,n.0yar,"were removed due to 0 death YAR;\n",n.na,"were removed due to NAs;\n"
-          ,sum(short_fac),"were removed because their facility ids are 'Short';\n"
-          ,sum(small_fac),"were removed because facility expected death < 3.\n"))
-
+          ,sum(short_fac),"were removed because their facility ids are 'Short'.\n"))
 year.list = unique(SMR_data[,year])
 
 cat("Calculating IURs ...\n ")
 t0 = proc.time()
 for(yr in year.list){
   sub_index = (SMR_data[,year] == yr)
-  IUR_temp = IUR_bootstrap(Obs = SMR_data[sub_index,obs_death], Exp = SMR_data[sub_index,exp_death], 
-                           fac = SMR_data[sub_index,facility], n.boot = n.boot, stratify.var = stratify.var,
+  SMR_sub = SMR_data[sub_index,]
+  SMR_sub[,facility] = factor(SMR_sub[,facility])
+  SMR_sub = SMR_sub[order(SMR_sub[,facility]),]
+  SMR_sub$expdeath = rep(sapply(split(SMR_sub[,exp_death],SMR_sub[,facility]),sum),
+                          sapply(split(SMR_sub[,exp_death],SMR_sub[,facility]),length)
+  )
+  small_fac = SMR_sub[,"expdeath"] < 3
+  SMR_sub = SMR_sub[!small_fac,]
+  cat(paste("In",yr, "data,",sum(small_fac),"were removed because facility expected death < 3.\n"))
+  
+  IUR_temp = IUR_bootstrap(Obs = SMR_sub[,obs_death], Exp = SMR_sub[,exp_death], 
+                           fac = SMR_sub[,facility], n.boot = n.boot, stratify.var = stratify.var,
                            stratify.cut = stratify.cut, measure.fun = cal_SMR, seed = seed)
   write.csv(IUR_temp$IUR,file = paste(output_path,"/IUR_SMR_",yr,"_",format(Sys.Date(),"%b%d%Y"),".csv",sep=""))
   write.csv(IUR_temp$IUR.fac,file = paste(output_path,"/facility_IUR_SMR_",yr,"_",format(Sys.Date(),"%b%d%Y"),".csv",sep=""))
@@ -127,6 +127,15 @@ for(yr in year.list){
 t1 = proc.time()
 (t1-t0)[3]
 cat(paste("Yearly IUR calculation is completed! Average running time:",round(((t1-t0)[3])/60/4,digits = 2),"minutes.\n"))
+
+SMR_data[,facility] = factor(SMR_data[,facility])
+SMR_data = SMR_data[order(SMR_data[,facility]),]
+SMR_data$expdeath = rep(sapply(split(SMR_data[,exp_death],SMR_data[,facility]),sum),
+                        sapply(split(SMR_data[,exp_death],SMR_data[,facility]),length)
+)
+small_fac = SMR_data[,"expdeath"] < 3
+SMR_data = SMR_data[!small_fac,]
+cat(paste("In 4-year data,",sum(small_fac),"were removed because facility expected death < 3.\n"))
 
 IUR_temp = IUR_bootstrap(Obs = SMR_data[,obs_death], Exp = SMR_data[,exp_death], fac = SMR_data[,facility], 
                          n.boot = n.boot, stratify.var = stratify.var,stratify.cut = stratify.cut, 

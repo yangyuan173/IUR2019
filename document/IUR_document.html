@@ -187,7 +187,7 @@ $(document).ready(function () {
 
 <h1 class="title toc-ignore">IUR Calculation for SHR, SMR, and STrR</h1>
 <h4 class="author"><em>Yuan Yang</em></h4>
-<h4 class="date"><em>2019-April-05</em></h4>
+<h4 class="date"><em>2019-April-10</em></h4>
 
 </div>
 
@@ -217,7 +217,7 @@ $(document).ready(function () {
 <li>Calculate <span class="math inline">\(SMR^{(b)}\)</span> for each bootstrap data.</li>
 <li>Calculate within-facility variance: <span class="math display">\[\sigma^2_w = \frac{\sum_j \sum_b (SMR_j^{(b)}-\overline{SMR}_j)^2}{\sum_j(n_j-1)},\]</span> where <span class="math inline">\(\overline{SMR}_j= \sum_b SMR_j^{(b)}/n_j\)</span>.</li>
 <li><span class="math display">\[n' = \frac{\sum_j n_j - \sum_j n_j^2/\sum_j n_j}{\sum_j n_j-1}.\]</span></li>
-<li>Calculate total vari ance: <span class="math display">\[\sigma^2_t = \frac{\sum_j n_j(SMR_j-\overline{SMR})^2}{n'(\sum_j n_j -1)},\]</span> where <span class="math inline">\(\overline{SMR} = \sum_j n_jSMR_j/\sum_j n_j\)</span>.</li>
+<li>Calculate total variance: <span class="math display">\[\sigma^2_t = \frac{\sum_j n_j(SMR_j-\overline{SMR})^2}{n'(\sum_j n_j -1)},\]</span> where <span class="math inline">\(\overline{SMR} = \sum_j n_jSMR_j/\sum_j n_j\)</span>.</li>
 <li>Between facility variance <span class="math inline">\(\sigma^2_b = \sigma^2_t- \sigma^2_w\)</span>.</li>
 <li><span class="math display">\[IUR = \frac{\sigma^2_b}{\sigma^2_t}.\]</span></li>
 <li>Facility IUR, <span class="math display">\[IUR_j = \frac{\sigma^2_b}{\sigma^2_b+\sigma^2_w/n_j}.\]</span></li>
@@ -225,7 +225,6 @@ $(document).ready(function () {
 </div>
 <div id="data-requirements" class="section level1">
 <h1>Data requirements</h1>
-<pre><code>## Warning: package 'kableExtra' was built under R version 3.5.2</code></pre>
 <table class="table table-striped table-hover table-condensed table-bordered" style="width: auto !important; margin-left: auto; margin-right: auto;">
 <thead>
 <tr>
@@ -290,9 +289,32 @@ Remove ‘Short’ and small facilities (facility trans_yar&lt;10)
 <h1>R code example</h1>
 <div id="smr" class="section level2">
 <h2>SMR</h2>
+<pre class="r"><code>rm(list=ls())
+uniqname = 'yuanyang'
+output_path = 'K:/Users/kecc-yuanyang/IUR0321'
+data_path = 'K:/Projects/Dialysis_Reports_Shared/Data/SMR/special_request'
+raw_data_name = 'SMRSHR_2014to2017.sas7bdat'
+
+source()
+obs_death = &quot;dial_drd&quot; #observed death
+exp_death = &quot;expectda&quot; #expeceted death
+facility = &quot;provfs&quot; #facility id
+death_yar = &quot;DIAL_yar&quot; #death year
+year = &quot;year&quot; #data year</code></pre>
 </div>
 <div id="shr" class="section level2">
 <h2>SHR</h2>
+<pre class="r"><code>rm(list=ls())
+uniqname = 'yuanyang'
+output_path = 'K:/Users/kecc-yuanyang/IUR0321'
+data_path = 'K:/Projects/Dialysis_Reports_Shared/Data/SMR/special_request'
+raw_data_name = 'SMRSHR_2014to2017.sas7bdat'
+
+obs_admission = &quot;h_admits&quot; #observed admission
+exp_admission = &quot;expectta&quot; #expeceted admission
+hosp_yar = &quot;h_dy_yar&quot; #hospital YAR
+facility = &quot;provfs&quot; #facility id
+year = &quot;year&quot; #data year</code></pre>
 </div>
 <div id="strr" class="section level2">
 <h2>STrR</h2>

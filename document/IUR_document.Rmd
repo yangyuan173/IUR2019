@@ -3,7 +3,7 @@ title: "IUR Calculation for SHR, SMR, and STrR"
 author: "Yuan Yang"
 date: '`r format(Sys.Date(), "%Y-%B-%d")`'
 output:
-  pdf_document: default
+  #pdf_document: default
   html_document: default
 ---
 
@@ -66,10 +66,42 @@ df %>%
   kable_styling(bootstrap_options = c("striped", "hover", "condensed","bordered"), full_width = F)
 ```
 
+
+
 # R code example
 ## SMR
+```{r eval=FALSE, message=FALSE, warning=FALSE, paged.print=FALSE}
+rm(list=ls())
+uniqname = 'yuanyang'
+output_path = 'K:/Users/kecc-yuanyang/IUR0321'
+data_path = 'K:/Projects/Dialysis_Reports_Shared/Data/SMR/special_request'
+raw_data_name = 'SMRSHR_2014to2017.sas7bdat'
+
+source()
+obs_death = "dial_drd" #observed death
+exp_death = "expectda" #expeceted death
+facility = "provfs" #facility id
+death_yar = "DIAL_yar" #death year
+year = "year" #data year
+```
+
+
+
 
 ## SHR
+```{r eval=FALSE, message=FALSE, warning=FALSE, paged.print=FALSE}
+rm(list=ls())
+uniqname = 'yuanyang'
+output_path = 'K:/Users/kecc-yuanyang/IUR0321'
+data_path = 'K:/Projects/Dialysis_Reports_Shared/Data/SMR/special_request'
+raw_data_name = 'SMRSHR_2014to2017.sas7bdat'
+
+obs_admission = "h_admits" #observed admission
+exp_admission = "expectta" #expeceted admission
+hosp_yar = "h_dy_yar" #hospital YAR
+facility = "provfs" #facility id
+year = "year" #data year
+```
 
 ## STrR
 ```{r, eval=FALSE, include=FALSE}

@@ -9,8 +9,8 @@
 rm(list=ls())
 uniqname = 'yuanyang'
 output_path = 'K:/Users/kecc-yuanyang/IUR0321'
-data_path = 'K:/Projects/Dialysis_Reports_Shared/Data/SMR/special_request'
-raw_data_name = 'SMRSHR_2014to2017.sas7bdat'
+data_path = 'K:/Projects/Dialysis_Reports_Shared/Data/SHR/special_request'
+raw_data_name = 'SHRSHR_2014to2017.sas7bdat'
 
 obs_admission = "h_admits" #observed admission
 exp_admission = "expectta" #expeceted admission
@@ -66,16 +66,16 @@ if(dir.exists("./IUR")){
   }
 }
 
-measure.fun = cal_SMR
+measure.fun = cal_SHR
 sink(file="IUR_SHR_log.txt",append=TRUE)
 Sys.time()
 cat("Reading data ... \n")
 t0 = proc.time()[3]
-if(file.exists(paste(data_path,"/SMRSHR.Rdata",sep=""))) {
-  load(paste(data_path,"/SMRSHR.Rdata",sep=""))
+if(file.exists(paste(data_path,"/SHRSHR.Rdata",sep=""))) {
+  load(paste(data_path,"/SHRSHR.Rdata",sep=""))
 }else{
   dat = read.sas7bdat(paste(data_path,"/",raw_data_name,sep="")) # takes about 8 minutes
-  save(dat,file=paste(data_path,"/SMRSHR.Rdata",sep=""))
+  save(dat,file=paste(data_path,"/SHRSHR.Rdata",sep=""))
 }
 t1 = proc.time()[3]-t0
 cat(paste("Reading data completed! Running time:",round(t1/60,digits = 2),"minutes.\n"))
@@ -97,17 +97,9 @@ n.na = nrow(SHR_data)-sum(complete.cases(SHR_data))
 SHR_data = SHR_data[complete.cases(SHR_data),]
 short_fac = SHR_data[,facility] =='Short'
 SHR_data = SHR_data[!short_fac,]
-SHR_data[,facility] = factor(SHR_data[,facility])
-SHR_data = SHR_data[order(SHR_data[,facility]),]
-SHR_data$pat_yar = rep(sapply(split(SHR_data[,hosp_yar],SHR_data[,facility]),sum),
-                        sapply(split(SHR_data[,hosp_yar],SHR_data[,facility]),length)
-)
-small_fac = SHR_data[,"pat_yar"] < 5
-SHR_data = SHR_data[!small_fac,]
 cat(paste("Cleaning data completed!\n There are",n.all,"observations in the original data;\n"
           ,n.0yar,"were removed due to 0 hospital YAR;\n",n.na,"were removed due to NAs;\n"
-          ,sum(short_fac),"were removed due to their facility ids are 'Short';\n"
-          ,sum(small_fac),"were removed because facility expected death < 3.\n"))
+          ,sum(short_fac),"were removed due to their facility ids are 'Short'.\n"))
 year.list = unique(SHR_data[,year])
 
 
@@ -115,7 +107,17 @@ cat("\n Calculating IURs ...\n ")
 t0 = proc.time()
 for(yr in year.list){
   sub_index = (SHR_data[,year] == yr)
-  IUR_temp = IUR_bootstrap(Obs = SHR_data[sub_index,obs_admission], Exp = SHR_data[sub_index,exp_admission], fac = SHR_data[sub_index,facility], n.boot = n.boot, stratify.var = stratify.var,stratify.cut = stratify.cut, measure.fun = cal_SMR, seed = seed)
+  SHR_sub = SHR_data[sub_index,]
+  SHR_sub[,facility] = factor(SHR_sub[,facility])
+  SHR_sub = SHR_sub[order(SHR_sub[,facility]),]
+  SHR_sub$pat_yar = rep(sapply(split(SHR_sub[,hosp_yar],SHR_sub[,facility]),sum),
+                         sapply(split(SHR_sub[,hosp_yar],SHR_sub[,facility]),length)
+  )
+  small_fac = SHR_sub[,"pat_yar"] < 5
+  SHR_sub = SHR_sub[!small_fac,]
+  cat(paste("In",yr, "data,",sum(small_fac),"were removed because facility patient year < 5.\n"))
+  
+  IUR_temp = IUR_bootstrap(Obs = SHR_data[sub_index,obs_admission], Exp = SHR_data[sub_index,exp_admission], fac = SHR_data[sub_index,facility], n.boot = n.boot, stratify.var = stratify.var,stratify.cut = stratify.cut, measure.fun = cal_SHR, seed = seed)
   write.csv(IUR_temp$IUR,file = paste(output_path,"/IUR_SHR_",yr,"_",format(Sys.Date(),"%b%d%Y"),".csv",sep=""))
   write.csv(IUR_temp$IUR.fac,file = paste(output_path,"/facility_IUR_SHR_",yr,"_",format(Sys.Date(),"%b%d%Y"),".csv",sep=""))
 }
@@ -123,9 +125,19 @@ t1 = proc.time()
 (t1-t0)[3]
 cat(paste("Yearly IUR calculation is completed! Average running time:",round(((t1-t0)[3])/60/4,digits = 2),"minutes.\n"))
 
-IUR_temp = IUR_bootstrap(Obs = SHR_data[,obs_admission], Exp = SHR_data[,exp_admission], fac = SHR_data[,facility], n.boot = n.boot, stratify.var = stratify.var,stratify.cut = stratify.cut, measure.fun = cal_SMR, seed = seed)
-write.csv(IUR_temp$IUR,file = paste(output_path,"/IUR_SMR_all","_",format(Sys.Date(),"%b%d%Y"),".csv",sep=""))
-write.csv(IUR_temp$IUR.fac,file = paste(output_path,"/facility_IUR_SMR_all","_",format(Sys.Date(),"%b%d%Y"),".csv",sep=""))
+SHR_data[,facility] = factor(SHR_data[,facility])
+SHR_data = SHR_data[order(SHR_data[,facility]),]
+SHR_data$pat_yar = rep(sapply(split(SHR_data[,hosp_yar],SHR_data[,facility]),sum),
+                        sapply(split(SHR_data[,hosp_yar],SHR_data[,facility]),length)
+)
+small_fac = SHR_data[,"pat_yar"] < 5
+SHR_data = SHR_data[!small_fac,]
+cat(paste("In 4-year data,",sum(small_fac),"were removed because facility patient year < 5.\n"))
+
+
+IUR_temp = IUR_bootstrap(Obs = SHR_data[,obs_admission], Exp = SHR_data[,exp_admission], fac = SHR_data[,facility], n.boot = n.boot, stratify.var = stratify.var,stratify.cut = stratify.cut, measure.fun = cal_SHR, seed = seed)
+write.csv(IUR_temp$IUR,file = paste(output_path,"/IUR_SHR_all","_",format(Sys.Date(),"%b%d%Y"),".csv",sep=""))
+write.csv(IUR_temp$IUR.fac,file = paste(output_path,"/facility_IUR_SHR_all","_",format(Sys.Date(),"%b%d%Y"),".csv",sep=""))
 t2 = proc.time()
 (t2-t1)[3]
 cat(paste("Four-year IUR calculation is completed! Running time:",round(((t2-t1)[3])/60,digits = 2),"minutes.\n"))
